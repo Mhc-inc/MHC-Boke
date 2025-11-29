@@ -20,7 +20,7 @@ enum SpecialClass: String {
 class StatusListViewModel: @unchecked Sendable {
     lazy var statusList = [StatusViewModel]()
     var pulldownCount: Int?
-    @MainActor func loadSingleStatus(_ id: Int,finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
+    func loadSingleStatus(_ id: Int,finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
         StatusDAL.loadSingleStatus(id) { array in
             if let array = array {
                 for i in 0..<self.statusList.count {
@@ -34,7 +34,7 @@ class StatusListViewModel: @unchecked Sendable {
             finished(false)
         }
     }
-    @MainActor func loadStatus(isPullup: Bool? = nil, id: Int? = nil, comment_id: Int? = nil,to_uid: Int? = nil,finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
+    func loadStatus(isPullup: Bool? = nil, id: Int? = nil, comment_id: Int? = nil,to_uid: Int? = nil,finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
         if let isPullup = isPullup {
             let since_id = isPullup ? 0 : (statusList.first?.status.id ?? 0)
             let max_id = isPullup ? (statusList.last?.status.id ?? 0) : 0
@@ -92,7 +92,7 @@ class StatusListViewModel: @unchecked Sendable {
         }
     }
     
-    @MainActor func loadStatus(_ uid: String, specialClass: SpecialClass,finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
+    func loadStatus(_ uid: String, specialClass: SpecialClass,finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
         let completion: NetworkTools.HMRequestCallBack = {(Result: Any, error: Error?) in
             guard let array = Result as? [[String:Any]] else {
                 finished(false)
@@ -114,7 +114,7 @@ class StatusListViewModel: @unchecked Sendable {
             NetworkTools.shared.loadCommentStatus(uid, finished: completion)
         }
     }
-    @MainActor private func cacheSingleImage(dataList: [StatusViewModel],finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
+    private func cacheSingleImage(dataList: [StatusViewModel],finished: @escaping @Sendable @MainActor (_ isSuccessful: Bool) -> ()) {
         let group = DispatchGroup()
         //var dataLength = 0
         for vm in dataList {
@@ -139,6 +139,9 @@ class StatusListViewModel: @unchecked Sendable {
                 ImageDownloader.default.downloadImage(with: url, options:[.retryStrategy(DelayRetryStrategy(maxRetryCount: 12, retryInterval: .seconds(1))),.fromMemoryCacheOrRefresh],progressBlock: nil) {
                     result in
                     guard (try? result.get()) != nil else {
+                        Task {@MainActor in
+                            finished(false)
+                        }
                         return
                     }
                      //dataLength = dataLength + data.count
@@ -147,7 +150,9 @@ class StatusListViewModel: @unchecked Sendable {
             group.leave()
         }
         group.notify(queue: DispatchQueue.main) {
-            finished(true)
+            Task {@MainActor in
+                finished(true)
+            }
         }
     }
 }

@@ -127,7 +127,6 @@ class HomeTableViewController: BlogTableViewController {
         }
         refreshControl?.beginRefreshing()
         liveView.userListViewModel.loadFLFL(specialClass: .live) { (isSuccessful) in
-            print(self.liveView.userListViewModel.list)
             Task { @MainActor in
                 self.refreshControl?.endRefreshing()
                 if !isSuccessful {

@@ -8,7 +8,7 @@
 import Foundation
 private let maxCacheDateTime: TimeInterval = 60
 class StatusDAL {
-    @MainActor class func clearDataCache(type: type?) {
+    class func clearDataCache(type: type?) {
         let date = Date(timeIntervalSinceNow: -maxCacheDateTime)
         let df = DateFormatter()
         df.locale = Locale(identifier: "en")
@@ -22,21 +22,25 @@ class StatusDAL {
             try? db.executeUpdate(sql, values: [dateStr])
         }
     }
-    @MainActor class func removeCache(_ statusId: Int,_ type: type) {
+    class func removeCache(_ statusId: Int,_ type: type) {
         let sql = "DELETE FROM T_Status WHERE statusId = \(statusId) AND type = '\(type.rawValue)'"
         SQLiteManager.shared.queue.inDatabase { db in
             try? db.executeUpdate(sql, values: nil)
         }
     }     
     // 检查随机生成的ID是否唯一
-    @MainActor class func loadStatus(since_id: Int, max_id: Int, type: type, to_uid: Int?, finished: @escaping @Sendable @MainActor (_ array: [[String:Any]]?) -> ()) {
+    class func loadStatus(since_id: Int, max_id: Int, type: type, to_uid: Int?, finished: @escaping @Sendable @MainActor (_ array: [[String:Any]]?) -> ()) {
         let array = StatusDAL.checkCacheData(since_id: since_id, max_id: max_id,to_uid: to_uid, type: type)
         if type == .msg {
-            finished(array!)
+            Task{@MainActor in
+                finished(array!)
+            }
             return
         }
         if array!.count > 0{
-            finished(array!)
+            Task{@MainActor in
+                finished(array!)
+            }
             return
         }
         NetworkTools.shared.loadStatus(max_id: max_id, since_id: since_id) { (Result, Error) -> () in
@@ -52,7 +56,7 @@ class StatusDAL {
             finished(array)
         }
     }
-    @MainActor class func loadSingleStatus(_ id: Int, finished: @escaping @Sendable @MainActor (_ array: [String:Any]?) -> ()) {
+    class func loadSingleStatus(_ id: Int, finished: @escaping @Sendable @MainActor (_ array: [String:Any]?) -> ()) {
         
         NetworkTools.shared.loadOneStatus(id: id) { (Result, Error) -> () in
             if Error != nil {
@@ -82,13 +86,15 @@ class StatusDAL {
             }
             finished(nil)
         }
-        finished(nil)
+        Task{@MainActor in
+            finished(nil)
+        }
     }
     enum type: String{
         case status = "status"
         case msg = "msg"
     }
-    @MainActor class func checkCacheData(since_id: Int, max_id: Int, to_uid: Int? = nil, type: type) -> [[String:Any]]? {
+    class func checkCacheData(since_id: Int, max_id: Int, to_uid: Int? = nil, type: type) -> [[String:Any]]? {
         guard let userId = UserAccountViewModel.sharedUserAccount.account?.uid else {
             return nil
         }
@@ -118,7 +124,7 @@ class StatusDAL {
         }
         return arrayM
     }
-    @MainActor class func saveCache(array data: [[String:Any]], type: type) {
+    class func saveCache(array data: [[String:Any]], type: type) {
         guard let userId = UserAccountViewModel.sharedUserAccount.account?.uid else {
             return
         }
@@ -145,7 +151,7 @@ class StatusDAL {
             }
         }
     }
-    @MainActor class func saveChatSingleCache(array dict: [String:Any]) {
+    class func saveChatSingleCache(array dict: [String:Any]) {
         guard let userId = UserAccountViewModel.sharedUserAccount.account?.uid else {
             return
         }

@@ -7,8 +7,8 @@
 import Foundation
 import FMDB
 private let dbName = "readme.db"
-class SQLiteManager {
-    @MainActor static let shared = SQLiteManager()
+class SQLiteManager: @unchecked Sendable {
+    static let shared = SQLiteManager()
     let queue: FMDatabaseQueue
     init() {
         var path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last!
@@ -26,7 +26,7 @@ class SQLiteManager {
             }
         }
     }
-    @MainActor func execRecordSet(sql: String) -> [[String:Any]] {
+    func execRecordSet(sql: String) -> [[String:Any]] {
         var result = [[String:Any]]()
         SQLiteManager.shared.queue.inDatabase { db in
             guard let rs = try? db.executeQuery(sql,values: nil) else {

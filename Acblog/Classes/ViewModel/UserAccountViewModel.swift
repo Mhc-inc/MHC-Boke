@@ -12,7 +12,7 @@ class UserAccountViewModel: @unchecked Sendable {
         let 中文转换过的url = account!.portrait?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         return URL(string: 中文转换过的url ?? "")!
     }
-    @MainActor static let sharedUserAccount = UserAccountViewModel()
+    static let sharedUserAccount = UserAccountViewModel()
     var account: UserAccount?
     var userLogon: Bool {
         return account?.access_token != nil

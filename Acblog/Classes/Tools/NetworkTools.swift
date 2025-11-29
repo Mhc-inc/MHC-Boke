@@ -8,12 +8,13 @@
 import Foundation
 import UIKit
 
-class NetworkTools{
-    @MainActor static let shared: NetworkTools = {
+final class NetworkTools: Sendable{
+    private let networkQueue = DispatchQueue(label: "com.ACInc.network", qos: .default)
+    static let shared: NetworkTools = {
         let tools = NetworkTools()
         return tools
     }()
-    @MainActor var tokenDict: [String: Any]? {
+    var tokenDict: [String: Any]? {
         if let token = UserAccountViewModel.sharedUserAccount.accessToken {
             return ["access_token": token]
         }
@@ -26,68 +27,75 @@ class NetworkTools{
     typealias HMRequestCallBack = @Sendable @MainActor (_ Result: Any?, _ Error: Error?) -> ()
 }
 extension NetworkTools {
-    @MainActor func request(_ method: HMRequestMethod, _ URLString: String, _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
+    func request(_ method: HMRequestMethod, _ URLString: String, _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
         guard let parameters = parameters else {
-            finished(nil, NSError(domain: "com.ACInc", code: 1, userInfo: ["error": "your parameters were nil"]))
+            Task{@MainActor in
+                finished(nil, NSError(domain: "com.ACInc", code: 1, userInfo: ["error": "your parameters were nil"]))
+            }
             return
         }
         let parameterString = parameters.map { (key, value) -> String in
             return "\(key)=\(value)"
         }.joined(separator: "&")
-        var str = URLString
-        if method.rawValue == "GET" {
-            str += "?" + parameterString
-        }
-        guard let url = URL(string: str) else {
-            finished(nil, NSError(domain: "com.ACInc", code: 1, userInfo: ["error": "your url cannot be found"]))
-            return
-        }
-        var request = URLRequest(url: url)
-        if method.rawValue == "POST" {
-            let jsonData = parameterString.data(using: .utf8)
-            request.httpBody = jsonData  // 设置HTTPBody
-        }
-        request.httpMethod = method.rawValue
-        let completion = { @Sendable @MainActor (data: Data?, res: URLResponse?, error: (any Error)?)->Void in
-            if let any = try? JSONSerialization.jsonObject(with: data ?? Data(), options: .allowFragments) {
-                if let dict = any as? NSArray {
-                    finished(dict,error)
-                }
-                if let dict = any as? [String: Any] {
-                    finished(dict,error)
+        networkQueue.async {
+            
+            var str = URLString
+            if method.rawValue == "GET" {
+                str += "?" + parameterString
+            }
+            guard let url = URL(string: str) else {
+                Task {@MainActor in
+                    finished(nil, NSError(domain: "com.ACInc", code: 1, userInfo: ["error": "your url cannot be found"]))
                 }
                 return
             }
-            finished(data,error)
-        }
-        let task = URLSession.shared.dataTask(with: request) { data, request, error in
-            Task{@MainActor in
-                completion(data,request,error)
+            var request = URLRequest(url: url)
+            if method.rawValue == "POST" {
+                let jsonData = parameterString.data(using: .utf8)
+                request.httpBody = jsonData  // 设置HTTPBody
             }
+            request.httpMethod = method.rawValue
+            let completion = { @Sendable @MainActor (data: Data?, res: URLResponse?, error: (any Error)?)->Void in
+                if let any = try? JSONSerialization.jsonObject(with: data ?? Data(), options: .allowFragments) {
+                    if let dict = any as? NSArray {
+                        finished(dict,error)
+                    }
+                    if let dict = any as? [String: Any] {
+                        finished(dict,error)
+                    }
+                    return
+                }
+                finished(data,error)
+            }
+            let task = URLSession.shared.dataTask(with: request) { data, request, error in
+                Task{@MainActor in
+                    completion(data,request,error)
+                }
+            }
+            task.resume()
         }
-        task.resume()
     }
-    @MainActor func loadAccessToken(code: String, finished: @escaping HMRequestCallBack) {
+    func loadAccessToken(code: String, finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/accessToken.php"
         let params = ["code":code]
         request(.POST, urlString, params, finished: finished)
     }
-    @MainActor func isLived(finished: @escaping HMRequestCallBack) {
+    func isLived(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/isLived.php"
         tokenRequest(.POST, urlString, nil, finished: finished)
     }
 }
 extension NetworkTools {
-    @MainActor func loadUserInfo(finished: @escaping HMRequestCallBack) {
+    func loadUserInfo(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/getUser.php"
         tokenRequest(.POST, urlString, nil, finished: finished)
     }
-    @MainActor func loadUserInfo(uid:Int, finished: @escaping HMRequestCallBack) {
+    func loadUserInfo(uid:Int, finished: @escaping HMRequestCallBack) {
         let params = ["uid":uid]
         let urlString = rootHost+"/api/getUserUid.php"
         request(.POST, urlString, params, finished: finished)
     }
-    @MainActor func trend(_ trend:String? = nil, finished: @escaping HMRequestCallBack) {
+    func trend(_ trend:String? = nil, finished: @escaping HMRequestCallBack) {
         var params = [String:Any]()
         let urlString = rootHost+"/api/trend.php"
         guard let trend = trend else {
@@ -98,19 +106,19 @@ extension NetworkTools {
         params["trend"] = trend
         tokenRequest(.GET, urlString, params, finished: finished)
     }
-    @MainActor func deleteTrend(_ trend:String, finished: @escaping HMRequestCallBack) {
+    func deleteTrend(_ trend:String, finished: @escaping HMRequestCallBack) {
         let params = ["trend":trend]
         let urlString = rootHost+"/api/deleteTrend.php"
         tokenRequest(.GET, urlString, params as [String : Any], finished: finished)
     }
-    @MainActor func search(status:String, finished: @escaping HMRequestCallBack) {
+    func search(status:String, finished: @escaping HMRequestCallBack) {
         let params = ["status":status]
         let urlString = rootHost+"/api/search.php"
         tokenRequest(.POST, urlString, params, finished: finished)
     }
 }
 extension NetworkTools {
-    @MainActor func loadStatus(max_id: Int,since_id:Int,finished: @escaping HMRequestCallBack) {
+    func loadStatus(max_id: Int,since_id:Int,finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/loadBlog.php"
         var params = [String:Any]()
         if since_id > 0{
@@ -120,33 +128,33 @@ extension NetworkTools {
         }
         tokenRequest(.GET, urlString, params, finished: finished)
     }
-    @MainActor func profile(uid: String,finished: @escaping HMRequestCallBack) {
+    func profile(uid: String,finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/profileBlog.php"
         let params = ["uid":uid]
         request(.GET, urlString, params, finished: finished)
     }
-    @MainActor func loadOneStatus(id: Int,finished: @escaping HMRequestCallBack) {
+    func loadOneStatus(id: Int,finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/loadBlogOfId.php"
         let params = ["id":id]
         tokenRequest(.POST, urlString, params, finished: finished)
     }
-    @MainActor func loadHotStatus(finished: @escaping HMRequestCallBack) {
+    func loadHotStatus(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/loadHotBlog.php"
         tokenRequest(.POST, urlString,nil, finished: finished)
     }
-    @MainActor func loadLikeStatus(_ uid: String,finished: @escaping HMRequestCallBack) {
+    func loadLikeStatus(_ uid: String,finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/loadLikeBlog.php"
         var params = [String:Any]()
         params["uid"] = uid
         request(.POST, urlString, params, finished: finished)
     }
-    @MainActor func loadCommentStatus(_ uid: String,finished: @escaping HMRequestCallBack) {
+    func loadCommentStatus(_ uid: String,finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/loadCommentBlog.php"
         var params = [String:Any]()
         params["uid"] = uid
         request(.POST, urlString, params, finished: finished)
     }
-    @MainActor func loadFLFL(finished: @escaping HMRequestCallBack, _ uid: String? = nil, specialClass: SpecialClass) {
+    func loadFLFL(finished: @escaping HMRequestCallBack, _ uid: String? = nil, specialClass: SpecialClass) {
         var urlString = rootHost+"/api/"
         var type: HMRequestMethod = .POST
         if specialClass == .friend {
@@ -162,31 +170,31 @@ extension NetworkTools {
         urlString += ".php"
         tokenRequest(type, urlString, uid != nil ? ["uid": uid!] : nil, finished: finished)
     }
-    @MainActor func rename(rename: String,finished: @escaping HMRequestCallBack) {
+    func rename(rename: String,finished: @escaping HMRequestCallBack) {
         var params = [String: Any]()
         params["rename"] = rename
         let urlString = rootHost+"/api/rename.php"
         tokenRequest(.POST, urlString, params, finished: finished)
     }
-    @MainActor func tokenIsExpires(finished: @escaping HMRequestCallBack) {
+    func tokenIsExpires(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/accessTokenIsExpires.php"
         tokenRequest(.POST, urlString, nil, finished: finished)
     }
-    @MainActor func ExpiresTheToken(finished: @escaping HMRequestCallBack) {
+    func ExpiresTheToken(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/expiresToken.php"
         tokenRequest(.POST, urlString, nil, finished: finished)
     }
-    @MainActor func logOff(finished: @escaping HMRequestCallBack) {
+    func logOff(finished: @escaping HMRequestCallBack) {
         let urlString = rootHost+"/api/logOff.php"
         tokenRequest(.POST, urlString, nil, finished: finished)
     }
-    @MainActor func addFriend(_ to_uid: String,finished: @escaping HMRequestCallBack) {
+    func addFriend(_ to_uid: String,finished: @escaping HMRequestCallBack) {
         var params = [String: Any]()
         params["to_uid"] = to_uid
         let urlString = rootHost+"/api/addFriend.php"
         tokenRequest(.POST, urlString, params, finished: finished)
     }
-    @MainActor func deleteStatus(_ comment_id: Int?,_ comment_comment_id: Int?,_ id: Int,finished: @escaping HMRequestCallBack) {
+    func deleteStatus(_ comment_id: Int?,_ comment_comment_id: Int?,_ id: Int,finished: @escaping HMRequestCallBack) {
         var params: [String: Any] = ["id": id]
         if(comment_id != nil) {
             params["comment_id"] = comment_id
@@ -198,7 +206,7 @@ extension NetworkTools {
         let urlString = rootHost+"/api/deleteBlog.php"
         tokenRequest(.POST, urlString, params, finished: finished)
     }
-    @MainActor func like(_ id: Int,comment_id comment_comment_id: Int? = nil,_ comment_id: Int? = nil,_ finished: @escaping HMRequestCallBack) {
+    func like(_ id: Int,comment_id comment_comment_id: Int? = nil,_ comment_id: Int? = nil,_ finished: @escaping HMRequestCallBack) {
         var params: [String: Any] = ["id": id]
         params["like_uid"] = UserAccountViewModel.sharedUserAccount.account!.uid!
         if comment_id != nil {
@@ -210,9 +218,11 @@ extension NetworkTools {
         let urlString = rootHost+"/api/like.php"
         tokenRequest(.POST, urlString, params, finished: finished)
     }
-    @MainActor func tokenRequest(_ method: HMRequestMethod, _ URLString: String, _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
+    func tokenRequest(_ method: HMRequestMethod, _ URLString: String, _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
         guard let params = tokenDict else {
-            finished(nil, NSError(domain: "cn.itcast.error", code: -1001, userInfo: ["message": "token为空"]))
+            Task {@MainActor in
+                finished(nil, NSError(domain: "cn.itcast.error", code: -1001, userInfo: ["message": "token为空"]))
+            }
             return
         }
         var parameters = parameters
@@ -224,7 +234,7 @@ extension NetworkTools {
     }
 }
 extension NetworkTools {
-    @MainActor func sendStatus(status: String,comment_id: Int?,id: Int?,image: [UIImage], finished: @escaping HMRequestCallBack) {
+    func sendStatus(status: String,comment_id: Int?,id: Int?,image: [UIImage], finished: @escaping HMRequestCallBack) {
         // 1. 创建参数字典
         var params = [String: Any]()
         // 2. 设置参数
@@ -244,12 +254,12 @@ extension NetworkTools {
         }
         upload(urlString, data, params,finished: finished)
     }
-    @MainActor func sendPortrait(image: UIImage?, finished: @escaping HMRequestCallBack) {
+    func sendPortrait(image: UIImage?, finished: @escaping HMRequestCallBack) {
         // 2. 设置参数
         let urlString = rootHost+"/api/portrait.php"
         uploadImage(urlString, ["pic": image!.jpegData(compressionQuality: 0.8)!], nil, finished: finished)
     }
-    @MainActor private func upload(_ URLString: String, _ data: [Data], _ parameters: [String:Any]?, finished: @escaping HMRequestCallBack) {
+    private func upload(_ URLString: String, _ data: [Data], _ parameters: [String:Any]?, finished: @escaping HMRequestCallBack) {
         var datas = [String: Data]()
         for d in 0..<data.count {
             let filename = "pic{number}".replacingOccurrences(of: "{number}", with: String(d))
@@ -257,9 +267,11 @@ extension NetworkTools {
         }
         uploadImage(URLString, datas, parameters, finished: finished)
     }
-    @MainActor func uploadImage(_ URLString: String, _ data: [String: Data], _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
+    func uploadImage(_ URLString: String, _ data: [String: Data], _ parameters: [String: Any]?, finished: @escaping HMRequestCallBack) {
         guard let params = tokenDict, let url = URL(string:URLString) else {
-            finished(nil, NSError(domain: "cn.itcast.error", code: -1001, userInfo: ["message": "token 为空"]))
+            Task {@MainActor in
+                finished(nil, NSError(domain: "cn.itcast.error", code: -1001, userInfo: ["message": "token 为空"]))
+            }
             return
         }
         var parameters = parameters
