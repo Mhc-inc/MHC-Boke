@@ -57,7 +57,7 @@ class UserAccount: NSObject,NSCoding,NSSecureCoding,@unchecked Sendable {
         user = coder.decodeObject(forKey: "user") as? String
         portrait = coder.decodeObject(forKey: "portrait") as? String
     }
-    @MainActor func saveUserAccount() {
+    func saveUserAccount() {
         var path = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true).last!
         path = (path as NSString).appendingPathComponent("account.plist")
         /*

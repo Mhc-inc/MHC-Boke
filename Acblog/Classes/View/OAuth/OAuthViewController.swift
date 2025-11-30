@@ -75,21 +75,21 @@ extension OAuthViewController {
                 return .allow
             }
         }
-        guard let query = url.query,query.contains("code=") else {
-            return .allow
-        }
-        let code = String(query["code=".endIndex...])
-        UserAccountViewModel.sharedUserAccount.loadAccessToken(code: code) { (isSuccessful) -> () in
-            if !isSuccessful {
-                return
-            }
-            Task { @MainActor in
-                self.dismiss(animated: false) {
-                    NotificationCenter.default.post(name: .init(rawValue: ACSwitchRootViewControllerNotification), object: "welcome")
+        if let query = url.query,query.contains("code=") {
+            let code = String(query["code=".endIndex...])
+            UserAccountViewModel.sharedUserAccount.loadAccessToken(code: code) { (isSuccessful) -> () in
+                if !isSuccessful {
+                    return
+                }
+                Task {@MainActor in
+                    self.dismiss(animated: false) {
+                        NotificationCenter.default.post(name: .init(rawValue: ACSwitchRootViewControllerNotification), object: "welcome")
+                    }
                 }
             }
+            return .cancel
         }
-        return .cancel
+        return .allow
     }
 }
 extension OAuthViewController : WKUIDelegate{

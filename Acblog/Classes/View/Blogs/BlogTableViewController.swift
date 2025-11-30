@@ -52,14 +52,12 @@ class BlogTableViewController: VisitorTableViewController {
     @objc func loadData() {
         self.refreshControl?.beginRefreshing()
         statusListViewModel.loadStatus(id: vm != nil ? (vm?.status.id == 0 ? nil : vm?.status.id) : nil, comment_id: vm != nil ? (vm?.status.comment_id == 0 ? nil : vm?.status.comment_id): nil) { (isSuccessful) in
-            Task { @MainActor in
-                self.refreshControl?.endRefreshing()
-                if !isSuccessful {
-                    showError("加载数据错误，请稍后再试")
-                    return
-                }
-                self.tableView.reloadData()
+            self.refreshControl?.endRefreshing()
+            if !isSuccessful {
+                showError("加载数据错误，请稍后再试")
+                return
             }
+            self.tableView.reloadData()
         }
     }
     private lazy var photoBrowserAnimator: PhotoBrowserAnimator = PhotoBrowserAnimator()
@@ -91,8 +89,8 @@ class BlogTableViewController: VisitorTableViewController {
                 self?.present(vc, animated: true,completion: nil)
             }
         }
-        loadData()
         prepareTableView()
+        loadData()
     }
     
     @objc func close() {

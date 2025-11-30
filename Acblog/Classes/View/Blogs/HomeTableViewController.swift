@@ -115,15 +115,13 @@ class HomeTableViewController: BlogTableViewController {
         }
         //StatusDAL.clearDataCache()//删除缓存
         statusListViewModel.loadStatus(isPullup: self.refreshView.pullupView.isAnimating) { (isSuccessful) in
-            Task { @MainActor in
-                self.refreshView.pullupView.isAnimating ? self.refreshView.pullupView.stopAnimating() : self.refreshControl?.endRefreshing()
-                if !isSuccessful {
-                    showError("加载数据错误，请稍后再试")
-                    return
-                }
-                self.showPulldownTip()
-                self.tableView.reloadData()
+            self.refreshView.pullupView.isAnimating ? self.refreshView.pullupView.stopAnimating() : self.refreshControl?.endRefreshing()
+            if !isSuccessful {
+                showError("加载数据错误，请稍后再试")
+                return
             }
+            self.showPulldownTip()
+            self.tableView.reloadData()
         }
         refreshControl?.beginRefreshing()
         liveView.userListViewModel.loadFLFL(specialClass: .live) { (isSuccessful) in
@@ -164,18 +162,18 @@ class HomeTableViewController: BlogTableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupComposedButton()
-        NotificationCenter.default.addObserver(forName: Notification.Name("BKReloadHomePageDataNotification"), object: nil, queue: nil) { n in
+        NotificationCenter.default.addObserver(forName: Notification.Name("BKReloadHomePageDataNotification"), object: nil, queue: nil) {[weak self] n in
             let object = n.object as? Int
             Task { @MainActor in
                 if let id = object {
                     StatusDAL.removeCache(id, .status)
-                    if let i = self.statusListViewModel.statusList.firstIndex(where: { vm in
+                    if let i = self?.statusListViewModel.statusList.firstIndex(where: { vm in
                         vm.status.id == id
                     }) {
-                        self.statusListViewModel.statusList.remove(at: i)
+                        self?.statusListViewModel.statusList.remove(at: i)
+                        self?.tableView.reloadData()
                     }
                 }
-                self.tableView.reloadData()
             }
         }
     }

@@ -74,9 +74,7 @@ class ComposeViewController: UIViewController /*,UIWebViewDelegate*/ {
             }
             if fields[0].hasText {
                 NetworkTools.shared.trend(fields[0].text!) { Result, Error in
-                    Task { @MainActor in
-                        controller.dismiss(animated: true)
-                    }
+                    controller.dismiss(animated: true)
                 }
             }
         })
@@ -102,10 +100,8 @@ class ComposeViewController: UIViewController /*,UIWebViewDelegate*/ {
             guard let Result = result as? [String] else {
                 return
             }
-            Task { @MainActor in
-                self.trendView.trendList = Result
-                self.trendView.collectionView.reloadData()
-            }
+            self.trendView.trendList = Result
+            self.trendView.collectionView.reloadData()
         }
         self.trendView.setupUI()
         textView.resignFirstResponder()

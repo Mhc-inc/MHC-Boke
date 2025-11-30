@@ -33,19 +33,17 @@ class UserAccountViewModel: @unchecked Sendable {
     }
 }
 extension UserAccountViewModel {
-    @MainActor func loadAccessToken(code: String, finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
+    func loadAccessToken(code: String, finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
         NetworkTools.shared.loadAccessToken(code: code) { (Result, Error) -> () in
             if Error != nil {
                 finished(false)
                 return
             }
             self.account = UserAccount(dict: Result as! [String: Any])
-            Task { @MainActor in
-                self.loadUserInfo(account: self.account!, finished: finished)
-            }
+            self.loadUserInfo(account: self.account!, finished: finished)
         }
     }
-    @MainActor func loadUserInfo(account: UserAccount, finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
+    func loadUserInfo(account: UserAccount, finished: @escaping @Sendable (_ isSuccessful: Bool) -> ()) {
         NetworkTools.shared.loadUserInfo { (Result, Error) -> () in
             if Error != nil {
                 finished(false)
@@ -58,9 +56,7 @@ extension UserAccountViewModel {
             account.user = dict["user"] as? String
             account.portrait = (dict["portrait"] as? String)?.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
             account.uid = dict["uid"] as? String
-            Task { @MainActor in
-                account.saveUserAccount()
-            }
+            account.saveUserAccount()
             finished(true)
         }
     }

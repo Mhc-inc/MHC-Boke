@@ -188,27 +188,21 @@ class ProfileTableViewController: VisitorTableViewController {
                     }
                     
                     guard let res = Result as? [String:Any] else {
-                        Task { @MainActor in
-                            let controller = UIAlertController(title: NSLocalizedString("错误", comment: ""), message: NSLocalizedString("加载数据错误，请稍后重试", comment: ""), preferredStyle: .alert)
-                            controller.addAction(UIAlertAction(title: "OK", style: .default))
-                            self.present(controller, animated: true)
-                        }
+                        let controller = UIAlertController(title: NSLocalizedString("错误", comment: ""), message: NSLocalizedString("加载数据错误，请稍后重试", comment: ""), preferredStyle: .alert)
+                        controller.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(controller, animated: true)
                         return
                     }
                     
                     guard res["msg"] is Int else{
-                        Task { @MainActor in
-                            let controller = UIAlertController(title: NSLocalizedString("错误", comment: ""), message: NSLocalizedString("改名失败", comment: ""), preferredStyle: .alert)
-                            controller.addAction(UIAlertAction(title: "OK", style: .default))
-                            self.present(controller, animated: true)
-                        }
+                        let controller = UIAlertController(title: NSLocalizedString("错误", comment: ""), message: NSLocalizedString("改名失败", comment: ""), preferredStyle: .alert)
+                        controller.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(controller, animated: true)
                         return
                     }
-                    Task { @MainActor in
-                        UserAccountViewModel.sharedUserAccount.loadUserInfo(account: UserAccountViewModel.sharedUserAccount.account!) { isSuccessful in
-                            if isSuccessful {
-                                showInfo("改名成功")
-                            }
+                    UserAccountViewModel.sharedUserAccount.loadUserInfo(account: UserAccountViewModel.sharedUserAccount.account!) { isSuccessful in
+                        if isSuccessful {
+                            showInfo("改名成功")
                         }
                     }
                 }

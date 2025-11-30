@@ -45,35 +45,27 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         NotificationCenter.default.addObserver(forName: .init("ACSwitchRootViewControllerLogOutNotification"), object: nil, queue: nil) { (notification) in
             let object = notification.object as? String
-            Task { @MainActor in
-                if UserAccountViewModel.sharedUserAccount.userLogon {
-                    if object != nil {
-                        NetworkTools.shared.ExpiresTheToken { Result, Error in
-                            if (Result as! [String:Any])["msg"] as! Int == 1 {
-                                Task{@MainActor in
-                                    self.removeFile()
-                                }
-                            }
-                        }
-                    } else {
-                        NetworkTools.shared.logOff { Result, Error in
-                            if (Result as! [String:Any])["msg"] as! Int == 1 {
-                                Task{@MainActor in
-                                    self.removeFile()
-                                }
-                            }
+            if UserAccountViewModel.sharedUserAccount.userLogon {
+                if object != nil {
+                    NetworkTools.shared.ExpiresTheToken { Result, Error in
+                        if (Result as! [String:Any])["msg"] as! Int == 1 {
+                            self.removeFile()
                         }
                     }
-                    StatusDAL.clearDataCache(type: nil)
+                } else {
+                    NetworkTools.shared.logOff { Result, Error in
+                        if (Result as! [String:Any])["msg"] as! Int == 1 {
+                            self.removeFile()
+                        }
+                    }
                 }
+                StatusDAL.clearDataCache(type: nil)
             }
         }
         if UserAccountViewModel.sharedUserAccount.userLogon {
             NetworkTools.shared.tokenIsExpires { Result, Error in
                 if (Result as? [String:Any])?["msg"] as? Int == 1 {
-                    Task{@MainActor in
-                        self.removeFile()
-                    }
+                    self.removeFile()
                 }
             }
         }
